@@ -2,35 +2,39 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
+using System.Linq;
 
 class Program
 {
+    private static int combinationCount = 0;
+
     static void Main(string[] args)
     {
-        string inputFilePath = "C:\\Users\\Andreas\\source\\repos\\Fiver\\Fiver\\five.txt"; // Update with your text file path
+        string inputFilePath = @"C:\Users\Andreas\source\repos\Fiver\Fiver\five.txt";
         List<string> words = ReadWordsFromFile(inputFilePath);
 
-        if (words.Count < 5)
+        if (words.Count < 3)
         {
-            Console.WriteLine("There are not enough words in the text file to form combinations.");
+            Console.WriteLine("There are not enough words in the file to form combinations.");
             return;
         }
 
-        Console.WriteLine("Generating and printing possible combinations...");
+        Console.WriteLine("Generating and printing possible combinations with real words...");
 
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        // Generate all possible combinations of letters in each word
-        var letterCombinations = GenerateLetterCombinations(words);
+        // Generate all possible combinations of 5 words
+        var wordCombinations = GenerateWordCombinations(words, 5);
 
-        foreach (var combination in letterCombinations)
+        foreach (var combination in wordCombinations)
         {
             PrintWordsPerLine(combination, 5);
+            Console.WriteLine();
         }
 
         stopwatch.Stop();
+        Console.WriteLine($"Total combinations generated: {combinationCount}");
         Console.WriteLine($"Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
     }
 
@@ -42,8 +46,8 @@ class Program
         {
             using (StreamReader sr = new StreamReader(filePath))
             {
-                string line = sr.ReadLine();
-                if (!string.IsNullOrWhiteSpace(line))
+                string line;
+                while ((line = sr.ReadLine()) != null)
                 {
                     words.AddRange(line.Split(' ', StringSplitOptions.RemoveEmptyEntries));
                 }
@@ -57,68 +61,52 @@ class Program
         return words;
     }
 
-    static List<List<string>> GenerateLetterCombinations(List<string> words)
+    static List<List<string>> GenerateWordCombinations(List<string> words, int combinationLength)
     {
         List<List<string>> combinations = new List<List<string>>();
-
-        foreach (var word in words)
-        {
-            List<string> letterCombinations = GeneratePermutations(word);
-            combinations.Add(letterCombinations);
-        }
-
+        GenerateWordCombinationsHelper(words, combinationLength, new List<string>(), combinations, 0);
         return combinations;
     }
 
-    static List<string> GeneratePermutations(string word)
+    static void GenerateWordCombinationsHelper(List<string> words, int combinationLength, List<string> currentCombination, List<List<string>> combinations, int startIndex)
     {
-        List<string> permutations = new List<string>();
-        GeneratePermutationsHelper(word.ToCharArray(), 0, permutations);
-        return permutations;
-    }
-
-    static void GeneratePermutationsHelper(char[] chars, int index, List<string> permutations)
-    {
-        if (index == chars.Length - 1)
+        if (currentCombination.Count == combinationLength)
         {
-            permutations.Add(new string(chars));
+            combinations.Add(new List<string>(currentCombination));
+            combinationCount++;
+            return;
         }
-        else
+
+        for (int i = startIndex; i < words.Count; i++)
         {
-            for (int i = index; i < chars.Length; i++)
+            string word = words[i];
+            if (!currentCombination.Any(w => word.Any(c => w.Contains(c))))
             {
-                Swap(chars, index, i);
-                GeneratePermutationsHelper(chars, index + 1, permutations);
-                Swap(chars, index, i); // Restore the original order
+                currentCombination.Add(word);
+                GenerateWordCombinationsHelper(words, combinationLength, currentCombination, combinations, i + 1);
+                currentCombination.RemoveAt(currentCombination.Count - 1);
             }
         }
-    }
-
-    static void Swap(char[] chars, int i, int j)
-    {
-        char temp = chars[i];
-        chars[i] = chars[j];
-        chars[j] = temp;
     }
 
     static void PrintWordsPerLine(List<string> words, int wordsPerLine)
     {
-        StringBuilder lineBuilder = new StringBuilder();
+        int count = 0;
 
         foreach (var word in words)
         {
-            lineBuilder.Append(word).Append(" ");
+            Console.Write(word + " ");
+            count++;
 
-            if (lineBuilder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries).Length % wordsPerLine == 0)
+            if (count % wordsPerLine == 0)
             {
-                Console.WriteLine(lineBuilder.ToString().Trim());
-                lineBuilder.Clear();
+                Console.WriteLine();
             }
         }
 
-        if (lineBuilder.Length > 0)
+        if (count % wordsPerLine != 0)
         {
-            Console.WriteLine(lineBuilder.ToString().Trim());
+            Console.WriteLine();
         }
     }
 }
