@@ -14,10 +14,9 @@ class Program
         string[] wordsArray = ReadWordsFromFile(inputFilePath);
         List<string> words = wordsArray.ToList();
 
-
-        if (words.Count < 3)
+        if (words.Count < 5)
         {
-            Console.WriteLine("There are not enough words in the file to form combinations.");
+            Console.WriteLine("There are not enough 5-letter words in the file to form combinations.");
             return;
         }
 
@@ -26,7 +25,7 @@ class Program
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
 
-        // Generate all possible combinations of 5 words
+        // Generate all possible combinations of 5 words with 5 unique letters each
         var wordCombinations = GenerateWordCombinations(words, 5);
 
         foreach (var combination in wordCombinations)
@@ -43,18 +42,15 @@ class Program
     public static string[] ReadWordsFromFile(string filePath)
     {
         List<string> words = new List<string>();
-        using (StreamReader reader = new StreamReader("C:\\Users\\Andreas\\source\\repos\\Fiver\\Fiver\\five.txt"))
+        using (StreamReader reader = new StreamReader(filePath))
         {
             string word;
             while ((word = reader.ReadLine()) != null)
             {
-                if (word.Length != word.Distinct().Count())
-                    continue;
-
-                if (words.Any(w => string.Concat(w, word).Distinct().Count() == word.Length))
-                    continue;
-
-                words.Add(word);
+                if (word.Length == 5 && word.Distinct().Count() == 5)
+                {
+                    words.Add(word);
+                }
             }
         }
         return words.ToArray();
