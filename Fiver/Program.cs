@@ -11,7 +11,9 @@ class Program
     static void Main(string[] args)
     {
         string inputFilePath = @"C:\Users\Andreas\source\repos\Fiver\Fiver\five.txt";
-        List<string> words = ReadWordsFromFile(inputFilePath);
+        string[] wordsArray = ReadWordsFromFile(inputFilePath);
+        List<string> words = wordsArray.ToList();
+
 
         if (words.Count < 3)
         {
@@ -38,27 +40,24 @@ class Program
         Console.WriteLine($"Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
     }
 
-    static List<string> ReadWordsFromFile(string filePath)
+    public static string[] ReadWordsFromFile(string filePath)
     {
         List<string> words = new List<string>();
-
-        try
+        using (StreamReader reader = new StreamReader("C:\\Users\\Andreas\\source\\repos\\Fiver\\Fiver\\five.txt"))
         {
-            using (StreamReader sr = new StreamReader(filePath))
+            string word;
+            while ((word = reader.ReadLine()) != null)
             {
-                string line;
-                while ((line = sr.ReadLine()) != null)
-                {
-                    words.AddRange(line.Split(' ', StringSplitOptions.RemoveEmptyEntries));
-                }
+                if (word.Length != word.Distinct().Count())
+                    continue;
+
+                if (words.Any(w => string.Concat(w, word).Distinct().Count() == word.Length))
+                    continue;
+
+                words.Add(word);
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("An error occurred while reading the file: " + ex.Message);
-        }
-
-        return words;
+        return words.ToArray();
     }
 
     static List<List<string>> GenerateWordCombinations(List<string> words, int combinationLength)
