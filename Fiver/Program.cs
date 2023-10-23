@@ -14,11 +14,18 @@ class Program
         string[] wordsArray = ReadWordsFromFile(inputFilePath);
         List<string> words = wordsArray.ToList();
 
+        int originalWordCount = words.Count; // Store the original word count
+
+        // Remove anagrams and words with lengths above or below 5
+        words = FilterWords(words);
+
         if (words.Count < 5)
         {
-            Console.WriteLine("There are not enough 5-letter words in the file to form combinations.");
+            Console.WriteLine("There are not enough valid 5-letter words in the file to form combinations.");
             return;
         }
+
+        Console.WriteLine($"Valid words count: {words.Count} (out of {originalWordCount})");
 
         Console.WriteLine("Generating and printing possible combinations with real words...");
 
@@ -28,10 +35,28 @@ class Program
         // Generate all possible combinations of 5 words with 5 unique letters each
         var wordCombinations = GenerateWordCombinations(words, 5);
 
-        foreach (var combination in wordCombinations)
+        int batchSize = 10;
+        int currentIndex = 0;
+
+        while (currentIndex < wordCombinations.Count)
         {
-            PrintWordsPerLine(combination, 5);
-            Console.WriteLine();
+            int endIndex = Math.Min(currentIndex + batchSize, wordCombinations.Count);
+            var batch = wordCombinations.GetRange(currentIndex, endIndex - currentIndex);
+
+            foreach (var combination in batch)
+            {
+                PrintWordsPerLine(combination, 5);
+                Console.WriteLine();
+            }
+
+            currentIndex = endIndex;
+
+            // Check if the user wants to see more combinations
+            if (currentIndex < wordCombinations.Count)
+            {
+                Console.WriteLine("Press Enter to continue...");
+                Console.ReadLine();
+            }
         }
 
         stopwatch.Stop();
@@ -47,27 +72,34 @@ class Program
             string word;
             while ((word = reader.ReadLine()) != null)
             {
-                if (word.Length == 5 && word.Distinct().Count() == 5)
-                {
-                    words.Add(word);
-                }
+                words.Add(word);
             }
         }
         return words.ToArray();
     }
 
-    static List<List<string>> GenerateWordCombinations(List<string> words, int combinationLength)
+    public static List<string> FilterWords(List<string> words)
     {
-        List<List<string>> combinations = new List<List<string>>();
-        GenerateWordCombinationsHelper(words, combinationLength, new List<string>(), combinations, 0);
-        return combinations;
+        // Remove anagrams and words with lengths above or below 5
+        return words
+            .Where(word => word.Length == 5 && word.Distinct().Count() == 5)
+            .GroupBy(word => string.Concat(word.OrderBy(c => c)))
+            .Select(group => group.First()) // Remove anagrams
+            .ToList();
     }
 
-    static void GenerateWordCombinationsHelper(List<string> words, int combinationLength, List<string> currentCombination, List<List<string>> combinations, int startIndex)
+    static List<List<string>> GenerateWordCombinations(List<string> words, int combinationLength)
+    {
+        List<List<string>> result = new List<List<string>>();
+        GenerateWordCombinationsHelper(words, combinationLength, new List<string>(), result, 0);
+        return result;
+    }
+
+    static void GenerateWordCombinationsHelper(List<string> words, int combinationLength, List<string> currentCombination, List<List<string>> result, int startIndex)
     {
         if (currentCombination.Count == combinationLength)
         {
-            combinations.Add(new List<string>(currentCombination));
+            result.Add(new List<string>(currentCombination));
             combinationCount++;
             return;
         }
@@ -78,7 +110,7 @@ class Program
             if (!currentCombination.Any(w => word.Any(c => w.Contains(c))))
             {
                 currentCombination.Add(word);
-                GenerateWordCombinationsHelper(words, combinationLength, currentCombination, combinations, i + 1);
+                GenerateWordCombinationsHelper(words, combinationLength, currentCombination, result, i + 1);
                 currentCombination.RemoveAt(currentCombination.Count - 1);
             }
         }
