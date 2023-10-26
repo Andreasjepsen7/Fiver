@@ -7,63 +7,90 @@ using System.Linq;
 class Program
 {
     private static int combinationCount = 0;
+    private static Dictionary<int, string> _dictionary;
 
     static void Main(string[] args)
     {
-        string inputFilePath = @"C:\Users\Andreas\source\repos\Fiver\Fiver\five.txt";
-        string[] wordsArray = ReadWordsFromFile(inputFilePath);
-        List<string> words = wordsArray.ToList();
-
-        int originalWordCount = words.Count; // Store the original word count
-
-        // Remove anagrams and words with lengths above or below 5
-        words = FilterWords(words);
-
-        if (words.Count < 5)
+        try
         {
-            Console.WriteLine("There are not enough valid 5-letter words in the file to form combinations.");
-            return;
-        }
+            // output og input paths
+            string outputFilePath = "C:\\Users\\Andreas\\source\\repos\\Fiver\\Fiver\\combi.txt";
+            string inputFilePath = "C:\\Users\\Andreas\\source\\repos\\Fiver\\Fiver\\five.txt";
 
-        Console.WriteLine($"Valid words count: {words.Count} (out of {originalWordCount})");
+            // læser input filen
+            string[] wordsArray = ReadWordsFromFile(inputFilePath);
+            List<string> words = wordsArray.ToList();
 
-        Console.WriteLine("Generating and printing possible combinations with real words...");
+            int originalWordCount = words.Count;
 
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
+            // filter til 5 bogstavs ord
+            words = FilterWords(words);
 
-        // Generate all possible combinations of 5 words with 5 unique letters each
-        var wordCombinations = GenerateWordCombinations(words, 5);
-
-        int batchSize = 10;
-        int currentIndex = 0;
-
-        while (currentIndex < wordCombinations.Count)
-        {
-            int endIndex = Math.Min(currentIndex + batchSize, wordCombinations.Count);
-            var batch = wordCombinations.GetRange(currentIndex, endIndex - currentIndex);
-
-            foreach (var combination in batch)
+            if (words.Count < 5)
             {
-                PrintWordsPerLine(combination, 5);
-                Console.WriteLine();
+                Console.WriteLine("There are not enough valid 5-letter words in the file to form combinations.");
+                return;
             }
 
-            currentIndex = endIndex;
+            Console.WriteLine($"Valid words count: {words.Count} (out of {originalWordCount})");
+            Console.WriteLine("Generating and printing possible combinations with real words...");
 
-            // Check if the user wants to see more combinations
-            if (currentIndex < wordCombinations.Count)
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            _dictionary = new Dictionary<int, string>();
+
+            // bygger et directory som gemmer ordene som bits
+            foreach (string word in words)
             {
-                Console.WriteLine("Press Enter to continue...");
-                Console.ReadLine();
+                int bitKey = 0;
+                foreach (var bit in word)
+                {
+                    bitKey |= 1 << bit - 'a';
+                }
+                if (_dictionary.ContainsKey(bitKey)) continue;
+                _dictionary.Add(bitKey, word);
             }
-        }
+            int[] keys = _dictionary.Keys.ToArray();
 
-        stopwatch.Stop();
-        Console.WriteLine($"Total combinations generated: {combinationCount}");
-        Console.WriteLine($"Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
+            // Generere ord kombinationer
+            var wordCombinations = GenerateWordCombinations(keys, 5);
+
+            int batchSize = 10;
+            int currentIndex = 0;
+
+            using (var file = File.Create(outputFilePath))
+            using (var writer = new StreamWriter(file))
+            {
+                // skriver combinationer i batches
+                while (currentIndex < wordCombinations.Count)
+                {
+                    int endIndex = Math.Min(currentIndex + batchSize, wordCombinations.Count);
+                    var batch = wordCombinations.GetRange(currentIndex, endIndex - currentIndex);
+
+                    foreach (var combination in batch)
+                    {
+                        foreach (var word in combination)
+                        {
+                            writer.WriteLine(string.Join(" ", word));
+                        }
+                        writer.WriteLine();
+                    }
+                    currentIndex = endIndex;
+                }
+            }
+
+            stopwatch.Stop();
+            Console.WriteLine($"Total combinations generated: {combinationCount}");
+            Console.WriteLine($"Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("An error occurred: " + ex.Message);
+        }
     }
 
+    // læser input filen og putter den i et array of strings
     public static string[] ReadWordsFromFile(string filePath)
     {
         List<string> words = new List<string>();
@@ -78,9 +105,10 @@ class Program
         return words.ToArray();
     }
 
+
+    // filter
     public static List<string> FilterWords(List<string> words)
     {
-        // Remove anagrams and words with lengths above or below 5
         return words
             .Where(word => word.Length == 5 && word.Distinct().Count() == 5)
             .GroupBy(word => string.Concat(word.OrderBy(c => c)))
@@ -88,34 +116,46 @@ class Program
             .ToList();
     }
 
-    static List<List<string>> GenerateWordCombinations(List<string> words, int combinationLength)
+
+    // genererer kombinationer af ord baseret på bits
+    static List<List<string>> GenerateWordCombinations(int[] words, int combinationLength)
     {
         List<List<string>> result = new List<List<string>>();
-        GenerateWordCombinationsHelper(words, combinationLength, new List<string>(), result, 0);
+        GenerateWordCombinationsHelper(words, combinationLength, 0, new int[0], result, 0);
         return result;
     }
 
-    static void GenerateWordCombinationsHelper(List<string> words, int combinationLength, List<string> currentCombination, List<List<string>> result, int startIndex)
+
+    // hjælpe method til at genererer ved brug af rekursiv
+    static void GenerateWordCombinationsHelper(int[] words, int combinationLength, int key, int[] currentCombination, List<List<string>> result, int startIndex)
     {
-        if (currentCombination.Count == combinationLength)
+        if (currentCombination.Length == combinationLength)
         {
-            result.Add(new List<string>(currentCombination));
+            var list = new List<string>();
+
+            foreach (var bit in currentCombination)
+            {
+                list.Add(_dictionary[bit]);
+            }
+            result.Add(list);
             combinationCount++;
             return;
         }
 
-        for (int i = startIndex; i < words.Count; i++)
+        for (int i = startIndex; i < words.Length; i++)
         {
-            string word = words[i];
-            if (!currentCombination.Any(w => word.Any(c => w.Contains(c))))
+            int word = words[i];
+            if ((key & word) == 0)
             {
-                currentCombination.Add(word);
-                GenerateWordCombinationsHelper(words, combinationLength, currentCombination, result, i + 1);
-                currentCombination.RemoveAt(currentCombination.Count - 1);
+                int[] newCombinations = new int[currentCombination.Length + 1];
+                currentCombination.CopyTo(newCombinations, 0);
+                newCombinations[newCombinations.Length - 1] = word;
+                GenerateWordCombinationsHelper(words, combinationLength, key | word, newCombinations, result, i + 1);
             }
         }
     }
 
+    // udskriver specificerede ord per linje
     static void PrintWordsPerLine(List<string> words, int wordsPerLine)
     {
         int count = 0;
